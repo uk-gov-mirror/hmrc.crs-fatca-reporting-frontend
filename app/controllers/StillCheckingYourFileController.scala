@@ -19,7 +19,7 @@ package controllers
 import config.FrontendAppConfig
 import connectors.FileDetailsConnector
 import controllers.actions.*
-import models.fileDetails.BusinessRuleErrorCode.{FailedSchemaValidationCrs, FailedSchemaValidationFatca}
+import models.fileDetails.BusinessRuleErrorCode.{FATCARegimeIncorrect2, FailedSchemaValidationCrs, FailedSchemaValidationFatca}
 import models.fileDetails.FileValidationErrors
 import models.submission.fileDetails.{Accepted as FileStatusAccepted, NotAccepted, Pending, Rejected, RejectedSDES, RejectedSDESVirus}
 import pages.{ConversationIdPage, ValidXMLPage}
@@ -89,7 +89,14 @@ class StillCheckingYourFileController @Inject() (
   }
 
   private def handleRejectedWithErrors(errors: Option[FileValidationErrors], regime: String): Future[Result] = {
-    val notAcceptedErrorCodes = Set(FailedSchemaValidationCrs, FailedSchemaValidationFatca)
+    val notAcceptedErrorCodes = Set(FailedSchemaValidationCrs, FailedSchemaValidationFatca, FATCARegimeIncorrect2)
+    val isNotAcceptedRecord = errors
+      .flatMap(_.recordError)
+      .getOrElse(Nil)
+      .exists(
+        e => notAcceptedErrorCodes(e.code)
+      )
+
     val isNotAccepted = errors
       .flatMap(_.fileError)
       .getOrElse(Nil)
@@ -97,7 +104,7 @@ class StillCheckingYourFileController @Inject() (
         e => notAcceptedErrorCodes(e.code)
       )
 
-    if (isNotAccepted)
+    if (isNotAccepted || isNotAcceptedRecord)
       Future.successful(Redirect(routes.FileNotAcceptedController.onPageLoad(regime)))
     else
       Future.successful(Redirect(routes.FileFailedChecksController.onPageLoad()))

@@ -290,6 +290,36 @@ class StillCheckingYourFileControllerSpec extends SpecBase {
           redirectLocation(result).value mustEqual controllers.routes.FileNotAcceptedController.onPageLoad(FATCA.toString).url
         }
       }
+
+      "when file status is Rejected with FATCA 51 error" in {
+        val messageSpecData  = getMessageSpecData(FATCA, fiNameFromFim = hardcodedFiName, reportType = NewInformation)
+        val validUserAnswers = emptyUserAnswers.withPage(ValidXMLPage, getValidatedFileData(messageSpecData)).withPage(ConversationIdPage, conversationId)
+        val fileDetails = getTestFileDetails(
+          status = Rejected,
+          errors = Some(FileValidationErrors(fileError = Some(Seq(FileErrors(FailedSchemaValidationFatca, None))), recordError = None))
+        )
+
+        val application = applicationBuilder(userAnswers = Some(validUserAnswers))
+          .overrides(
+            bind[FileDetailsConnector].toInstance(mockFileDetailsConnector),
+            bind[FileDetailsService].toInstance(mockFileDetailsService)
+          )
+          .build()
+
+        when(mockFileDetailsConnector.getStatus(any[ConversationId]())(using any[HeaderCarrier], any[ExecutionContext]))
+          .thenReturn(Future.successful(Some(Rejected)))
+        when(mockFileDetailsService.getFileDetails(any[ConversationId])(any[HeaderCarrier](), any[ExecutionContext]()))
+          .thenReturn(Future.successful(Some(fileDetails)))
+
+        running(application) {
+          val request = FakeRequest(GET, routes.StillCheckingYourFileController.onPageLoad().url)
+          val result  = route(application, request).value
+
+          status(result) mustEqual SEE_OTHER
+          redirectLocation(result).value mustEqual controllers.routes.FileNotAcceptedController.onPageLoad(FATCA.toString).url
+        }
+      } //
+
     }
   }
 }

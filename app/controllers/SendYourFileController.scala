@@ -16,7 +16,7 @@
 
 package controllers
 
-import models.fileDetails.BusinessRuleErrorCode.{FailedSchemaValidationCrs, FailedSchemaValidationFatca}
+import models.fileDetails.BusinessRuleErrorCode.{FATCARegimeIncorrect2, FailedSchemaValidationCrs, FailedSchemaValidationFatca}
 import models.fileDetails.FileValidationErrors
 import connectors.FileDetailsConnector
 import controllers.actions.*
@@ -173,7 +173,14 @@ class SendYourFileController @Inject() (
   }
 
   private def handleRejectedWithErrors(errors: Option[FileValidationErrors], conversationId: ConversationId, regime: String): Future[Result] = {
-    val notAcceptedErrorCodes = Set(FailedSchemaValidationCrs, FailedSchemaValidationFatca)
+    val notAcceptedErrorCodes = Set(FailedSchemaValidationCrs, FailedSchemaValidationFatca, FATCARegimeIncorrect2)
+    val isNotAcceptedRecord = errors
+      .flatMap(_.recordError)
+      .getOrElse(Nil)
+      .exists(
+        e => notAcceptedErrorCodes(e.code)
+      )
+
     val isNotAccepted = errors
       .flatMap(_.fileError)
       .getOrElse(Nil)
@@ -181,7 +188,7 @@ class SendYourFileController @Inject() (
         e => notAcceptedErrorCodes(e.code)
       )
 
-    if (isNotAccepted)
+    if (isNotAccepted || isNotAcceptedRecord)
       Future.successful(Ok(Json.toJson(URL(routes.FileNotAcceptedController.onPageLoad(regime).url))))
     else
       Future.successful(Ok(Json.toJson(URL(routes.RulesErrorController.onPageLoad(conversationId.value).url))))

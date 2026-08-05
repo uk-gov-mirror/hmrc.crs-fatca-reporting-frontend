@@ -19,8 +19,8 @@ package controllers
 import base.SpecBase
 import connectors.FileDetailsConnector
 import models.CRSReportType.NewInformation
-import models.fileDetails.BusinessRuleErrorCode.{FailedSchemaValidationCrs, FailedSchemaValidationFatca}
-import models.fileDetails.{FileErrors, FileValidationErrors}
+import models.fileDetails.BusinessRuleErrorCode.{FATCARegimeIncorrect2, FailedSchemaValidationCrs, FailedSchemaValidationFatca}
+import models.fileDetails.{FileErrors, FileValidationErrors, RecordError}
 import models.requests.DataRequest
 import models.submission.*
 import models.submission.fileDetails.*
@@ -531,6 +531,35 @@ class SendYourFileControllerSpec extends SpecBase with BeforeAndAfterEach {
           }
         }
 
+      }
+
+      "when file status is Rejected with fatca business rule 51" in {
+        val validUserAnswers =
+          emptyUserAnswers.withPage(ValidXMLPage, getValidatedFileData(messageSpecDataFatca)).withPage(ConversationIdPage, conversationId)
+        val fileDetails = getTestFileDetails(
+          status = Rejected,
+          errors = Some(FileValidationErrors(fileError = None, recordError = Some(Seq(RecordError(FATCARegimeIncorrect2, None, None)))))
+        )
+
+        val application = applicationBuilder(userAnswers = Some(validUserAnswers))
+          .overrides(
+            bind[FileDetailsConnector].toInstance(mockFileDetailsConnector),
+            bind[FileDetailsService].toInstance(mockFileDetailsService)
+          )
+          .build()
+
+        when(mockFileDetailsConnector.getStatus(any[ConversationId]())(using any[HeaderCarrier], any[ExecutionContext]))
+          .thenReturn(Future.successful(Some(Rejected)))
+        when(mockFileDetailsService.getFileDetails(any[ConversationId])(any[HeaderCarrier](), any[ExecutionContext]()))
+          .thenReturn(Future.successful(Some(fileDetails)))
+
+        running(application) {
+          val request = FakeRequest(GET, routes.SendYourFileController.getStatus().url)
+          val result  = route(application, request).value
+
+          status(result) mustEqual OK
+          contentAsJson(result).toString mustEqual "{\"url\":\"/report-for-crs-and-fatca/report/problem/file-not-accepted?regime=FATCA\"}"
+        }
       }
 
       "must return internal server error when status is None" in {
