@@ -109,35 +109,35 @@ class IndexController @Inject() (
     implicit request =>
       // Delay the call to make sure the backend db has been populated by the upscan callback first
       pekko.pattern.after(config.upscanCallbackDelayInSeconds.seconds, actorSystem.scheduler) {
-      upscanConnector.getUploadStatus(uploadId) map {
-        case Some(uploadedSuccessfully: UploadedSuccessfully) =>
-          if (isFileNameInValid(uploadedSuccessfully.name)) {
-            Redirect(routes.IndexController.showError(InvalidArgument.code, InvalidFileNameLength.message, "").url)
-          } else if (isFileEmpty(uploadedSuccessfully.size)) {
-            Redirect(routes.IndexController.showError(InvalidArgument.code, FileIsEmpty.message, "").url)
-          } else {
-            Redirect(routes.FileValidationController.onPageLoad().url)
-          }
-        case Some(r: UploadRejected) =>
-          if (r.details.message.contains("octet-stream")) {
-            logger.warn(s"Show errorForm on rejection $r")
-            val errorReason = r.details.failureReason
-            Redirect(routes.IndexController.showError(OctetStream.code, errorReason.toLowerCase, "").url)
-          } else {
-            logger.warn(s"Upload rejected. Error details: ${r.details}")
-            Redirect(routes.IndexController.showError(InvalidArgument.code, TypeMismatch.message, "").url)
-          }
-        case Some(Quarantined) =>
-          Redirect(routes.IndexController.showError(VirusFile.code, "", "").url)
-        case Some(Failed) =>
-          logger.warn("File upload returned failed status")
-          Redirect(routes.IndexController.showError("UploadFailed", "", "").url)
-        case Some(_) =>
-          Ok(uploadPendingView(uploadId))
-        // Redirect(routes.IndexController.getStatus(uploadId).url)
-        case None =>
-          logger.error("Unable to retrieve file upload status from Upscan")
-          Redirect(routes.IndexController.showError("UploadFailed", "", "").url)
+        upscanConnector.getUploadStatus(uploadId) map {
+          case Some(uploadedSuccessfully: UploadedSuccessfully) =>
+            if (isFileNameInValid(uploadedSuccessfully.name)) {
+              Redirect(routes.IndexController.showError(InvalidArgument.code, InvalidFileNameLength.message, "").url)
+            } else if (isFileEmpty(uploadedSuccessfully.size)) {
+              Redirect(routes.IndexController.showError(InvalidArgument.code, FileIsEmpty.message, "").url)
+            } else {
+              Redirect(routes.FileValidationController.onPageLoad().url)
+            }
+          case Some(r: UploadRejected) =>
+            if (r.details.message.contains("octet-stream")) {
+              logger.warn(s"Show errorForm on rejection $r")
+              val errorReason = r.details.failureReason
+              Redirect(routes.IndexController.showError(OctetStream.code, errorReason.toLowerCase, "").url)
+            } else {
+              logger.warn(s"Upload rejected. Error details: ${r.details}")
+              Redirect(routes.IndexController.showError(InvalidArgument.code, TypeMismatch.message, "").url)
+            }
+          case Some(Quarantined) =>
+            Redirect(routes.IndexController.showError(VirusFile.code, "", "").url)
+          case Some(Failed) =>
+            logger.warn("File upload returned failed status")
+            Redirect(routes.IndexController.showError("UploadFailed", "", "").url)
+          case Some(_) =>
+            Ok(uploadPendingView(uploadId))
+          // Redirect(routes.IndexController.getStatus(uploadId).url)
+          case None =>
+            logger.error("Unable to retrieve file upload status from Upscan")
+            Redirect(routes.IndexController.showError("UploadFailed", "", "").url)
         }
       }
   }
