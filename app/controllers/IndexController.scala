@@ -108,7 +108,7 @@ class IndexController @Inject() (
   def getStatus(uploadId: UploadId): Action[AnyContent] = (identify andThen getData andThen requireData).async {
     implicit request =>
       // Delay the call to make sure the backend db has been populated by the upscan callback first
-//      pekko.pattern.after(config.upscanCallbackDelayInSeconds.seconds, actorSystem.scheduler) {
+      pekko.pattern.after(config.upscanCallbackDelayInSeconds.seconds, actorSystem.scheduler) {
       upscanConnector.getUploadStatus(uploadId) map {
         case Some(uploadedSuccessfully: UploadedSuccessfully) =>
           if (isFileNameInValid(uploadedSuccessfully.name)) {
@@ -138,7 +138,7 @@ class IndexController @Inject() (
         case None =>
           logger.error("Unable to retrieve file upload status from Upscan")
           Redirect(routes.IndexController.showError("UploadFailed", "", "").url)
-//        }
+        }
       }
   }
 
