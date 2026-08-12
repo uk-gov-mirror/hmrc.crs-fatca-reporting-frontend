@@ -28,7 +28,7 @@ import models.upscan.*
 import models.{ErrorCode, InvalidArgumentErrorMessage}
 import org.apache.pekko
 import org.apache.pekko.actor.ActorSystem
-import pages.{FileReferencePage, UploadIDPage}
+import pages.{FileReferencePage, PollingCountPage, UploadIDPage}
 import play.api.data.Form
 import play.api.i18n.I18nSupport
 import play.api.i18n.Lang.logger
@@ -107,6 +107,8 @@ class IndexController @Inject() (
 
   def getStatus(uploadId: UploadId): Action[AnyContent] = (identify andThen getData andThen requireData).async {
     implicit request =>
+      val refreshThreshHold = 5;
+      val pollingCount      = request.userAnswers.get(PollingCountPage).getOrElse(0)
       // Delay the call to make sure the backend db has been populated by the upscan callback first
       pekko.pattern.after(config.upscanCallbackDelayInSeconds.seconds, actorSystem.scheduler) {
         upscanConnector.getUploadStatus(uploadId) map {
@@ -133,7 +135,18 @@ class IndexController @Inject() (
             logger.warn("File upload returned failed status")
             Redirect(routes.IndexController.showError("UploadFailed", "", "").url)
           case Some(_) =>
-            Ok(uploadPendingView(uploadId))
+            if (pollingCount <= refreshThreshHold) {
+              val count = pollingCount + 1
+              Future
+                .fromTry(request.userAnswers.set(PollingCountPage, count))
+                .flatMap(
+                  u => sessionRepository.set(u)
+                )
+              Redirect(routes.IndexController.getStatus(uploadId).url)
+            } else {
+              Ok(uploadPendingView(uploadId))
+            }
+          // Ok(uploadPendingView(uploadId))
           // Redirect(routes.IndexController.getStatus(uploadId).url)
           case None =>
             logger.error("Unable to retrieve file upload status from Upscan")
@@ -146,3 +159,11 @@ class IndexController @Inject() (
 
   private def isFileEmpty(size: Long): Boolean = size == 0L
 }
+
+//if (pollingCount <= refreshThreshHold) {
+//  val count = pollingCount + 1
+//  Future.fromTry(request.userAnswers.set(PollingCountPage, count)).flatMap(u => sessionRepository.set(u))
+//  Redirect(routes.IndexController.getStatus(uploadId).url)
+//} else {
+//  Ok(uploadPendingView(uploadId))
+//}
