@@ -109,7 +109,7 @@ class IndexController @Inject() (
     implicit request =>
       val refreshThreshHold = 5;
       val pollingCount      = request.userAnswers.get(PollingCountPage).getOrElse(0)
-      //What is missing deleting the PollingCountPage when we redirect to a new page.
+      // What is missing deleting the PollingCountPage when we redirect to a new page.
 
       // Delay the call to make sure the backend db has been populated by the upscan callback first
       pekko.pattern.after(config.upscanCallbackDelayInSeconds.seconds, actorSystem.scheduler) {
