@@ -61,6 +61,7 @@ class UploadXMLViewSpec extends SpecBase with GuiceOneAppPerSuite with Injecting
       lazy val doc = Jsoup.parse(renderedHtml.body)
 
       getAllParagraph(doc).text() must include("The selected file must be smaller than 250MB")
+      getWindowTitle(doc) must include("Error: Upload an XML file for CRS or FATCA")
     }
   }
 

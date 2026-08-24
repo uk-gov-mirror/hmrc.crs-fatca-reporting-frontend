@@ -26,7 +26,7 @@
 @(form: Form[_], upscanInitiateResponse: UpscanInitiateResponse)(implicit request: Request[_], messages: Messages)
 
 @layout(
-    pageTitle    = titleNoForm(messages("uploadXML.title")),
+    pageTitle    = title(form, messages("uploadXML.title")),
     showBackLink = true
 ) {
 
